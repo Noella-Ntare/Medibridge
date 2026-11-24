@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEDIBRIDGE // Inter-Hospital Alert Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<style>
+:root{--bg:#04090d;--panel:rgba(10,24,32,.72);--line:rgba(0,229,200,.22);--cy:#00e5c8;--tx:#cfeee8;--dim:#6f9a94;--low:#4aa3ff;--med:#ffd23f;--high:#ff8a3d;--crit:#ff3d5a;--ok:#39ff88;
+--hd:'Chakra Petch',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 var(--mono);min-height:100vh;
+background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px),radial-gradient(900px 500px at 80% -10%,rgba(0,229,200,.14),transparent);
+background-size:48px 48px,48px 48px,100% 100%;background-attachment:fixed}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.18) 2px 3px);opacity:.5}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+h1{font:700 clamp(22px,4vw,34px)/1 var(--hd);letter-spacing:.14em;margin:0}
+h1 span{color:var(--cy);text-shadow:0 0 18px var(--cy)}
+.sub{color:var(--dim);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{border:1px solid var(--line);padding:5px 10px;border-radius:3px;font-size:12px;color:var(--dim)}
+.pill b{color:var(--cy);font-weight:500}
+button{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--cy);background:rgba(0,229,200,.07);border:1px solid var(--cy);padding:9px 14px;cursor:pointer;
+clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);transition:.15s}
+button:hover:not(:disabled){background:var(--cy);color:#001512;box-shadow:0 0 18px var(--cy)}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.danger{color:var(--crit);border-color:var(--crit);background:rgba(255,61,90,.07)}
+button.danger:hover:not(:disabled){background:var(--crit);color:#1a0006;box-shadow:0 0 18px var(--crit)}
+.ecg{margin:18px 0 6px;height:64px;border-block:1px solid var(--line);position:relative;overflow:hidden}
+.ecg svg{width:100%;height:100%}
+.ecg path{fill:none;stroke:var(--cy);stroke-width:2;filter:drop-shadow(0 0 4px var(--cy));stroke-dasharray:600;animation:sweep 3s linear infinite}
+body.alarm .ecg path{stroke:var(--crit);filter:drop-shadow(0 0 5px var(--crit));animation-duration:1.2s}
+@keyframes sweep{from{stroke-dashoffset:600}to{stroke-dashoffset:-600}}
+.ecg .tag{position:absolute;right:10px;top:6px;font-size:11px;letter-spacing:.2em;color:var(--cy)}
+body.alarm .ecg .tag{color:var(--crit);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.2}}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(8px);padding:14px 16px;position:relative}
+.card::before{content:"";position:absolute;left:-1px;top:-1px;width:14px;height:14px;border-left:2px solid var(--cy);border-top:2px solid var(--cy)}
+.k{font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.v{font:700 34px/1.1 var(--hd);margin-top:4px}
+.v.red{color:var(--crit);text-shadow:0 0 14px var(--crit)}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+h2{font:700 14px var(--hd);letter-spacing:.22em;text-transform:uppercase;margin:0 0 12px;color:var(--cy)}
+label{display:block;font-size:11px;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;margin:10px 0 4px}
+input,select{width:100%;background:#061218;color:var(--tx);border:1px solid var(--line);padding:9px 10px;font:inherit;border-radius:0}
+input:focus,select:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 1px var(--cy)}
+.row{display:flex;gap:8px}.row>*{flex:1}
+form button{width:100%;margin-top:14px}
+.alert{border-left:3px solid var(--c);margin-bottom:12px;padding:12px 14px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 10%,transparent),transparent 60%),var(--panel);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.alert.s1,.alert.s3{box-shadow:0 0 22px -8px var(--c)}
+.alert.s4{opacity:.55;--c:var(--ok)!important}
+.top{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:baseline}
+.title{font:700 17px var(--hd);letter-spacing:.06em}
+.chip{font-size:11px;padding:2px 8px;border:1px solid var(--c);color:var(--c);letter-spacing:.12em;text-transform:uppercase}
+.meta{color:var(--dim);font-size:12px;margin:6px 0 10px;word-break:break-word}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.timer{font-size:12px;color:var(--med)}
+.empty{color:var(--dim);text-align:center;padding:40px 0;border:1px dashed var(--line)}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#02161a;border:1px solid var(--cy);padding:10px 16px;max-width:92vw;z-index:9;display:none;font-size:12px;word-break:break-all}
+.mode{display:flex;gap:8px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>MEDI<span>BRIDGE</span></h1><div class="sub">Inter-Hospital Alert Network · Ethereum</div></div>
+  <div class="bar">
+    <span class="pill">NET <b id="net">OFFLINE</b></span>
+    <span class="pill">ROLE <b id="role">—</b></span>
+    <button id="btnConnect">Connect wallet</button>
+    <button id="btnDemo">Demo mode</button>
+  </div>
+</header>
+
+<div class="ecg"><svg viewBox="0 0 600 64" preserveAspectRatio="none"><path d="M0 36H80l10-6 10 6h40l8-4 8 4h30l6-30 8 56 8-26h60l10-6 10 6h60l8-4 8 4h40l6-30 8 56 8-26H600"/></svg><div class="tag" id="status">NO OPEN ALERTS</div></div>
+
+<div class="stats">
+  <div class="card"><div class="k">Total alerts</div><div class="v" id="sTotal">0</div></div>
+  <div class="card"><div class="k">Open</div><div class="v" id="sActive">0</div></div>
+  <div class="card"><div class="k">Fulfilled</div><div class="v" id="sDone">0</div></div>
+  <div class="card"><div class="k">Contract</div><div class="v" style="font-size:13px;padding-top:10px" id="sAddr">not set</div></div>
+</div>
+
+<div class="grid">
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Contract</h2>
+      <label for="addr">Sepolia contract address</label>
+      <input id="addr" placeholder="0x…  (from deployed-address.json)" spellcheck="false">
+      <div class="mode"><button id="btnLoad" style="flex:1">Load</button></div>
+    </div>
+    <form class="card" id="form">
+      <h2>Post urgent request</h2>
+      <label for="cat">Category</label>
+      <select id="cat"><option value="0">Blood</option><option value="1">Medication</option><option value="2">Patient transfer</option></select>
+      <label for="urg">Urgency</label>
+      <select id="urg"><option value="2">Critical</option><option value="1">Urgent</option><option value="0">Normal</option></select>
+      <label for="item">What is needed? (no patient names or IDs)</label>
+      <input id="item" value="O-negative blood, 4 units" required>
+      <button class="danger" id="btnRaise" disabled>⚠ Broadcast to network</button>
+    </form>
+  </div>
+  <div>
+    <h2>Network alert feed</h2>
+    <div id="feed"><div class="empty">Connect a wallet and load your contract, or try Demo mode.</div></div>
+  </div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const CATS=["Blood","Medication","Patient Transfer"],URG=["Normal","Urgent","Critical"],URGC=["--low","--high","--crit"];
+const ST=["None","Open","Responded","Fulfilled","Cancelled"];
+const ZERO="0x0000000000000000000000000000000000000000";
+const ABI=[
+"function totalAlerts() view returns (uint256)","function openAlertCount() view returns (uint256)",
+"function hasRole(bytes32,address) view returns (bool)","function HOSPITAL_ROLE() view returns (bytes32)","function hospitalName(address) view returns (string)",
+"function getAlert(uint256) view returns (tuple(uint256 id,uint8 category,uint8 urgency,uint8 status,string item,address requester,uint256 requestedAt,address responder,uint256 respondedAt,string responseNote,uint256 closedAt))",
+"function raiseAlert(uint8,uint8,string) returns (uint256)","function respondToAlert(uint256,string)","function fulfilAlert(uint256)","function cancelAlert(uint256)"];
+let mode=null,contract=null,me=null,isHosp=false,names={},demo={alerts:[]};
+const short=a=>a?a.slice(0,6)+"…"+a.slice(-4):"—";
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast=m=>{const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",5000)};
+const now=()=>Math.floor(Date.now()/1000);
+const who=a=>names[a]?esc(names[a]):short(a);
+
+async function readAll(){
+  if(mode==="demo")return{total:demo.alerts.length,open:demo.alerts.filter(a=>a.status<3).length,alerts:[...demo.alerts]};
+  const n=Number(await contract.totalAlerts()),open=Number(await contract.openAlertCount()),alerts=[];
+  for(let i=n;i>Math.max(0,n-30);i--){const a=await contract.getAlert(i);
+    alerts.push({id:Number(a.id),cat:Number(a.category),urg:Number(a.urgency),status:Number(a.status),item:a.item,by:a.requester,at:Number(a.requestedAt),resp:a.responder,respAt:Number(a.respondedAt),rnote:a.responseNote});
+    for(const x of [a.requester,a.responder])if(x!==ZERO&&!names[x])names[x]=await contract.hospitalName(x)}
+  return{total:n,open,alerts};
+}
+async function act(kind,id){
+  try{
+    let note="";if(kind==="resp"){note=prompt("Response note (e.g. units available, pickup time):","Available");if(note===null)return}
+    if(mode==="demo"){
+      const a=demo.alerts.find(x=>x.id===id);
+      if(kind==="resp"){a.status=2;a.resp=me;a.respAt=now();a.rnote=note}
+      if(kind==="sim"){a.status=2;a.resp="0xCHUK";a.respAt=now();a.rnote="Available (simulated)"}
+      if(kind==="ful")a.status=3;if(kind==="can")a.status=4;
+    }else{
+      const tx=kind==="resp"?await contract.respondToAlert(id,note):kind==="ful"?await contract.fulfilAlert(id):await contract.cancelAlert(id);
+      toast("Tx sent: "+tx.hash);await tx.wait();toast("Confirmed ✔ "+tx.hash);
+    }
+    refresh();
+  }catch(e){toast("✖ "+(e.reason||e.shortMessage||e.message))}
+}
+$("#form").addEventListener("submit",async e=>{
+  e.preventDefault();const v=[+$("#cat").value,+$("#urg").value,$("#item").value.trim()];
+  try{
+    if(mode==="demo")demo.alerts.unshift({id:demo.alerts.length+1,cat:v[0],urg:v[1],status:1,item:v[2],by:me,at:now(),resp:ZERO,respAt:0,rnote:""});
+    else{const tx=await contract.raiseAlert(...v);toast("Tx sent: "+tx.hash);await tx.wait();toast("Alert on-chain ✔")}
+    refresh();
+  }catch(err){toast("✖ "+(err.reason||err.shortMessage||err.message))}
+});
+
+let snap=null;
+async function refresh(){
+  try{snap=await readAll()}catch(e){return toast("Read failed: "+(e.shortMessage||e.message))}
+  $("#sTotal").textContent=snap.total;$("#sActive").textContent=snap.open;$("#sActive").classList.toggle("red",snap.open>0);
+  $("#sDone").textContent=snap.alerts.filter(a=>a.status===3).length;
+  document.body.classList.toggle("alarm",snap.open>0);
+  $("#status").textContent=snap.open>0?`${snap.open} OPEN ALERT${snap.open>1?"S":""}`:"NO OPEN ALERTS";
+  $("#btnRaise").disabled=!isHosp;render();
+}
+function render(){
+  if(!snap)return;
+  $("#feed").innerHTML=snap.alerts.length?snap.alerts.map(a=>{
+    const mine=a.by===me,isDemo=mode==="demo";
+    return `<div class="alert s${a.status}" style="--c:var(${URGC[a.urg]})">
+      <div class="top"><div class="title">#${a.id} · ${CATS[a.cat]}</div><div><span class="chip">${URG[a.urg]}</span> <span class="chip" style="--c:var(--cy)">${ST[a.status]}</span></div></div>
+      <div class="meta"><b style="color:var(--tx)">${esc(a.item)}</b><br>requested by ${who(a.by)} · ${new Date(a.at*1000).toLocaleString()}${a.resp&&a.resp!==ZERO?`<br>answered by ${who(a.resp)} after ${a.respAt-a.at}s${a.rnote?" · “"+esc(a.rnote)+"”":""}`:""}</div>
+      <div class="acts">
+        ${isHosp&&!mine&&a.status===1?`<button onclick="act('resp',${a.id})">Respond</button>`:""}
+        ${isDemo&&mine&&a.status===1?`<button onclick="act('sim',${a.id})">Simulate other hospital</button>`:""}
+        ${mine&&a.status===2?`<button onclick="act('ful',${a.id})">Mark fulfilled</button>`:""}
+        ${mine&&a.status<3?`<button class="danger" onclick="act('can',${a.id})">Cancel</button>`:""}
+      </div></div>`}).join(""):`<div class="empty">No alerts recorded yet.</div>`;
+}
+setInterval(()=>mode&&refresh(),8000);
+
+$("#btnDemo").onclick=()=>{
+  mode="demo";isHosp=true;me="0xKIMIRONKO";names={"0xKIMIRONKO":"Kimironko District Hospital","0xCHUK":"CHUK Referral Hospital","0xRWANDA":"Rwanda Military Hospital"};
+  $("#net").textContent="DEMO";$("#role").textContent="HOSPITAL (sim)";$("#sAddr").textContent="in-memory";
+  if(!demo.alerts.length)demo.alerts=[{id:1,cat:1,urg:1,status:1,item:"Insulin glargine, 20 vials",by:"0xRWANDA",at:now()-300,resp:ZERO,respAt:0,rnote:""}];
+  refresh();toast("Demo mode: simulated, nothing is sent to a blockchain");
+};
+let provider,signer;
+$("#btnConnect").onclick=async()=>{
+  if(!window.ethereum)return toast("MetaMask not found. Install it or use Demo mode.");
+  try{
+    provider=new ethers.BrowserProvider(window.ethereum);await provider.send("eth_requestAccounts",[]);
+    signer=await provider.getSigner();me=await signer.getAddress();
+    const n=await provider.getNetwork();$("#net").textContent=n.chainId===11155111n?"SEPOLIA":(n.name+" ("+n.chainId+")");
+    $("#btnConnect").textContent=short(me);
+    const saved=localStorage.getItem("medibridge_addr");if(saved){$("#addr").value=saved;load()}
+  }catch(e){toast("✖ "+(e.shortMessage||e.message))}
+};
+async function load(){
+  if(!signer)return toast("Connect your wallet first.");
+  const a=$("#addr").value.trim();if(!ethers.isAddress(a))return toast("Invalid contract address.");
+  try{
+    contract=new ethers.Contract(a,ABI,signer);await contract.totalAlerts();
+    try{localStorage.setItem("medibridge_addr",a)}catch{}
+    isHosp=await contract.hasRole(await contract.HOSPITAL_ROLE(),me);
+    names[me]=isHosp?await contract.hospitalName(me):"";
+    $("#role").textContent=isHosp?"HOSPITAL":"VIEWER";$("#sAddr").textContent=short(a);mode="chain";refresh();
+  }catch(e){toast("✖ No HospitalAlertSystem at that address on this network.")}
+}
+$("#btnLoad").onclick=load;
+if(window.ethereum)window.ethereum.on?.("accountsChanged",()=>location.reload());
+try{const s=localStorage.getItem("medibridge_addr");if(s)$("#addr").value=s}catch{}
+</script>
+</body>
+</html>
