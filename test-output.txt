@@ -1,0 +1,36 @@
+Compiled 1 Solidity file successfully (evm target: paris).
+
+
+  HospitalAlertSystem (MediBridge)
+    TC1-3: Setup & hospital registry
+      ✔ TC1: deployer is admin and the contract starts empty (1530ms)
+      ✔ TC2: admin registers and removes hospitals; name is stored
+      ✔ TC3: only the admin can register hospitals
+    TC4-7: Raising alerts
+      ✔ TC4: a registered hospital raises a blood alert; record and event are correct
+      ✔ TC5: an unregistered address cannot raise an alert
+      ✔ TC6: an empty item description is rejected
+      ✔ TC7: all three categories work and ids increase by one
+    TC8-12: Responding to alerts
+      ✔ TC8: another hospital responds and the response time is recorded
+      ✔ TC9: a hospital cannot respond to its own alert
+      ✔ TC10: an unregistered address cannot respond
+      ✔ TC11: an alert that already has a response cannot be answered again
+      ✔ TC12: responding to a non-existent alert reverts
+    TC13-17: Closing alerts
+      ✔ TC13: the requester fulfils an alert after a response; counters update
+      ✔ TC14: an alert cannot be fulfilled before a response, or by someone other than the requester
+      ✔ TC15: the requester can cancel an open alert
+      ✔ TC16: only the requester can cancel, and a closed alert cannot be cancelled again
+      ✔ TC17: getOpenAlertIds excludes fulfilled and cancelled alerts
+    TC18: Access removal
+      ✔ TC18: a removed hospital can no longer raise alerts, but its old alerts stay on record
+
+
+  18 passing (2s)
+
+npm notice
+npm notice New major version of npm available! 10.9.9 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
